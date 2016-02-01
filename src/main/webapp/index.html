@@ -1,0 +1,65 @@
+<html>
+<head>
+   <script type="text/javascript" src="https://code.jquery.com/jquery-2.2.0.min.js"></script>
+</head>
+<body>
+    <h2>Mule embedded in Web Application Example</h2>
+
+    First Name:
+    <input id="firstName" type="text" value="John"/>
+
+    Last Name:
+    <input id="lastName" type="text" value="Lees"/>
+
+    Street Address:
+    <input id="streetAddress" type="text"  value="1009 Woodward Ave"/>
+
+    City:
+    <input id="city" type="text"  value="Akron"/>
+
+    State:
+    <input id="state" type="text"  value="OH"/>
+
+    ZipCode:
+    <input id="zipcode" type="text"  value="44310"/>
+
+    Age:
+    <input id="age" type="text"  value="100"/>
+
+   <input id="btnAddPerson" type="button" value="Add Person" />
+
+    <a href="/rest/person">View All People</a>
+
+    <script type="text/javascript">
+
+        $( document ).ready(function() {
+
+            $('#btnAddPerson').one("click", function() {
+
+                var data = {
+                    "firstName": $("#firstName").val(),
+                    "lastName": $("#lastName").val(),
+                    "address": {
+                        "streetAddress": $("#streetAddress").val(),
+                        "city": $("#city").val(),
+                        "state": $("#state").val(),
+                        "zipCode": $("#zipCode").val()
+                    },
+                    "age": $("#age").val()
+                };
+                $.ajax({
+                    type: "POST",
+                    url: "/rest/person",
+                    processData: false,
+                    contentType: 'application/json',
+                    data: JSON.stringify(data),
+                    success: function(data) {
+                        alert("Response: " + data.statusDescription);
+                    }
+                });
+            });
+        });
+    </script>
+
+</body>
+</html>

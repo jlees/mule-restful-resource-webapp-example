@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:json="http://www.mulesoft.org/schema/mule/json"
+      xmlns:spring="http://www.springframework.org/schema/beans"
+      xmlns:servlet="http://www.mulesoft.org/schema/mule/servlet"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+                          http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+                          http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+                          http://www.mulesoft.org/schema/mule/servlet http://www.mulesoft.org/schema/mule/servlet/3.6/mule-servlet.xsd
+                          http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+
+    <spring:beans>
+        <spring:bean class="java.util.HashMap" id="personDataStore" name="personDataStore" scope="singleton"/>
+        <spring:bean class="java.util.concurrent.atomic.AtomicInteger" id="personId" name="personId" scope="singleton"/>
+    </spring:beans>
+
+    <flow name="personsFlow">
+        <servlet:inbound-endpoint path="/person"/>
+        <choice>
+            <when expression="#[message.inboundProperties['http.method'] == 'GET']">
+                <set-payload value="#[app.registry.'personDataStore'.values()]"/>
+                <json:object-to-json-transformer/>
+            </when>
+            <when expression="#[message.inboundProperties['http.method'] == 'POST']">
+                <json:json-to-object-transformer returnClass="org.mule.examples.Person"/>
+                <set-variable value="#[app.registry.'personId'.incrementAndGet()]" variableName="personId"/>
+                <expression-component><![CDATA[app.registry.'personDataStore'.put(personId, payload);]]></expression-component>
+                <set-payload value="{ &quot;status&quot;: &quot;success&quot;, &quot;statusDescription&quot;: &quot;person created successfully&quot;}"/>
+            </when>
+        </choice>
+    </flow>
+
+    <flow name="retrievePersonFlow">
+        <servlet:inbound-endpoint path="/person/*"  />
+        <expression-filter expression="#[message.inboundProperties['http.method'] != 'GET']" />
+
+        <set-variable value="#[Integer.valueOf(message.inboundProperties.'http.uri.params'.personId)]" variableName="personId"/>
+        <logger level="ERROR" message="Person id is #[personId]"/>
+        <message-filter throwOnUnaccepted="true">
+            <expression-filter expression="#[app.registry.'personDataStore'.containsKey(personId)]"/>
+        </message-filter>
+        <set-payload value="#[app.registry.'personDataStore'.get(personId)]"/>
+        <choice-exception-strategy>
+            <rollback-exception-strategy when="#[exception.causedBy(org.mule.api.routing.filter.FilterUnacceptedException)]">
+                <set-variable value="404" variableName="errorStatusCode"/>
+                <set-variable value="Not Found" variableName="errorReasonPhrase"/>
+            </rollback-exception-strategy>
+        </choice-exception-strategy>
+    </flow>
+
+</mule>
